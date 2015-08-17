@@ -6,9 +6,7 @@
 
 @{
     string controllerActionPath = @Url.Action("CreateNewFile", "CreateDatain");
-    string tag = "<p style='margin-top:50px;'>Please click <a href=" + controllerActionPath + ">here</a> to create a new Datain file<p>";
-
-   
+    string tag = "<p>Alert: this page/link has been deprecated and should not be considered an option.</p><p style='margin-top:50px;'>Please click <a href=" + controllerActionPath + ">here</a> to create a new Datain file<p>";
 }
 
 @Html.Raw(tag)

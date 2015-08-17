@@ -30,7 +30,7 @@ namespace _25Live.Controllers
             }
             else
             {
-                string exception = dict["exception"];
+                string exception = dict["message"];
                 Session["exception"] = exception;
                 return View("ExceptionOccured");
             }

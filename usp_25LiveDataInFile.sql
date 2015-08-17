@@ -1,10 +1,13 @@
 USE [ODS]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_25LiveDataInFile]    Script Date: 5/28/2015 4:30:50 PM ******/
+
+/****** Object:  StoredProcedure [dbo].[usp_25LiveDataInFile]    Script Date: 8/5/2015 8:07:50 AM ******/
 SET ANSI_NULLS ON
 GO
+
 SET QUOTED_IDENTIFIER ON
 GO
+
 
 /****************************************************************************************************************************************************
 CREATED:
@@ -13,11 +16,15 @@ MODIFIED:
 04/16/2015   Smruthi Madhugiri  Updated the stored procedure to replace day values with the values UCP Interface understands.
 04/20/2015   Smruthi Madhugiri  Updated the procedure to have instructor Email instead of Instructor Name.
 06/05/2015   Smruthi Madhugiri  Updated the procedure to include ItemNumber to CRN to make it unique.
-13/05/2015   David Schieber     Updated the procedure to remove WorkEmail from selection criteria for CTE1 while adding Catalog and RoomName.
+05/13/2015   David Schieber     Updated the procedure to remove WorkEmail from selection criteria for CTE1 while adding Catalog and RoomName.
 					            And replaced WorkEmail with RoomName in CTE2 partition and order by, and CTE5 and CTE4 union order by.
-14/05/2015   David Schieber     Updated the procedure to remove EndTime and FinishWeek from CTE2 partition.
+05/14/2015   David Schieber     Updated the procedure to remove EndTime and FinishWeek from CTE2 partition.
+06/18/2015   David Schieber     Updated procedure with comment to set NextYearQuarter to hard coded YRQ.
+06/30/2015	 David Schieber		Updated procedure to accept variable DataInYearQuarter and apply that to the NextYearQuarter variable.
+								Purpose of this update is to allow the DataInYearQuarter variable to be set on the Windows Task Action tab that 
+								initiates the CreateDatain/CreateNewFile web application.
 ****************************************************************************************************************************************************/
-ALTER PROCEDURE [dbo].[usp_25LiveDataInFile] WITH RECOMPILE
+CREATE PROCEDURE [dbo].[usp_25LiveDataInFile] @DataInYearQuarter VARCHAR(4) WITH RECOMPILE
 AS 
     BEGIN
         SET NOCOUNT ON
@@ -29,7 +36,9 @@ AS
         DECLARE @NextYearQuarter VARCHAR(4)
         
         SELECT @CurrentYearQuarter = [dbo].[ufn_getETLYearQuarter]()
-        SET @NextYearQuarter =  (SELECT top 1 YearQuarterID FROM YearQuarter y WHERE y.FirstClassDay > GETDATE())
+        SET @NextYearQuarter = @DataInYearQuarter
+		--SET @NextYearQuarter =  (SELECT top 1 YearQuarterID FROM YearQuarter y WHERE y.FirstClassDay > GETDATE())
+		--SET @NextYearQuarter = 'B562'
         DECLARE @TimeMarker datetime
 
 		
@@ -104,7 +113,6 @@ WHERE a.ClusterItemNumber is not null
 
 
 UNION ALL
-
 */
 -- Where Clustered Items is null
 (SELECT RoomName, Days, ClassID, ClusterItemNumber, StartTime, endtime, StartHours, StartMinutes, FinishHours, FinishMinutes, APDesignator, Enrollment, DepartmentID, StartWeek, FinishWeek, CRN, CourseName, Section, Catalog, term, WorkEmail,
@@ -162,4 +170,7 @@ ORDER BY RoomName, Days, StartTime, EndTime, StartWeek, FinishWeek, AssignmentFi
         
         SET NOCOUNT OFF
     END    
+
+
+GO
 
