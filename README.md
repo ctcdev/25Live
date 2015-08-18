@@ -51,7 +51,13 @@ used to automate the process of scheduling rooms on campus.
    1. Translating SMS Location Ids to PeopleSoft Ids.  Syntax of Translation file should be:
        * [SMS Location Id] [tab] [PeopleSoft Id]
 	   * Ex: AAR 101 [tab] LCC001AAR0101
+   1. Create Head Count file
 
 ## Configuration
 
 Please refer web.config-template file.
+
+## Record Testing
+
+You can use [lccRecordsVerifier](http://lcc.ctc.edu/demo/projectlid/LCCRecordsVerifier) to verify the
+fixed with columns in the record(s) match up.
