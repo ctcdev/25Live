@@ -29,7 +29,7 @@
     <add key="lccIdTranslationsPath" value="" />
     <add key="lccDebugIP" value="" />
 
- <!--
+    <!--
       LogLevels
        1 - [CreateDataInFile] function Started
        2 - [ReadAllSettings] function Started
@@ -46,7 +46,7 @@
        13 - [ReadSetting] Started
        14 - [ReadSetting] Finished
        16 - [CreateDataInFile] Launching getData
-       17 - [CreateDataInFile] Prevent USP from running (getData), test without SQL process
+       17 - [CreateDataInFile] Prevent all USP from running (getData), test without SQL process
        18 - [lccFTranslateId] Started
        19 - [lccFTranslateId] Compare
        20 - [lccFTranslateId] Match
@@ -57,13 +57,19 @@
        25 - [lccFLoadTranslationPairs] Loading Records
        26 - [lccFGetConfigurationInt] Value not number
        27 - [createDataInFile][archiving] Processing
-       28 - [CreateDataInFile] Launching getData
-       29 - [CreateDataInFile] Prevent USP from running (getData), test without SQL process
+       28 - [CreateDataInFile/lccFCreateHeadCountFile] Launching getData
+       29 - (deprecated) not used
        30 - [CreateDataInFile] JSON records returned values
        31 - [createDataInFile][archiving] Processing
+       32 - [lccFCheckJSONResponse] Started
+       33 - [lccFCheckJSONResponse] Key found
+       34 - [lccFCheckJSONResponse] First Key missing
+       35 - [createDataInFile] Skip USP for 'datain' file
+       36 - [lccFCreateHeadCountFile] Skip USP for 'headcount' file
+       37 - [createDataInFile/lccFCreateHeadCountFile] JSON Check failed, show full JSON response
     -->
-    <!--<add key="LogLevels" value="1,2,3,4,5,6,7,8,9,10,11,12,13,14,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31" />-->
-    <add key="lccLogLevels" value="1,2,3,7,8,9,10,12,13,14,16,27,28,31" />
+    <!--<add key="LogLevels" value="1,2,3,4,5,6,7,8,9,10,11,12,13,14,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36" />-->
+    <add key="lccLogLevels" value="1,2,3,7,8,9,10,12,13,14,16,27,28,31,34" />
 
     <!--
       Configuration for Ctrl data.

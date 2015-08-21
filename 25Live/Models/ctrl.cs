@@ -31,7 +31,8 @@ namespace _25Live.Models
                 lccTCTools.lccSCSettings.lccFSetLogLevels();
                 if (lccTCTools.lccSCSettings.lccSDebugIP.Length > 0)
                 {
-                    if (lccTCTools.lccSCSettings.lccSDebugIP.Equals(lccTCTools.lccSCSettings.lccSViewersIP) == true)
+                    if (lccTCTools.lccSCSettings.lccSDebugIP.Equals(lccTCTools.lccSCSettings.lccSViewersIP) == true
+                        || lccTCTools.lccSCSettings.lccSDebugIP.Equals("*") == true)
                     {
                         lccTCTools.lccSCSettings.lccBDebugMode = true;
                         lccTCTools.lccFLogInfo("20", "0", 1, "[ReadAllSettings] Debug Mode Activated");
@@ -153,7 +154,7 @@ namespace _25Live.Models
             catch (Exception ex)
             {
                 //Console.WriteLine("Exception", ex);
-                lccTCTools.lccFLogInfo("31", "0", 1, "[getData] ERROR [" + ex.Message + "]");
+                lccTCTools.lccFLogInfo("31", "0", 0, "[getData] ERROR [" + ex.Message + "]");
                 return "[getData] ERROR: [" + ex.Message + "]";
             }
             lccTCTools.lccFLogInfo("32", "0", 1, "[getData] Error - FINISHED outside of try/catch");
@@ -194,6 +195,7 @@ namespace _25Live.Models
 
         public IDictionary<string, string> createDataInFile(String yearQuarter)
         {
+            bool lccBAbortFunction = false;
             IDictionary<string, string> dict = new Dictionary<string, string>(); // Will be used for return values
             String message = "";
             int colAP = 0;
@@ -242,12 +244,14 @@ namespace _25Live.Models
             string archivePath = "";
             //string line = "";
             string line = "";
+            string classRows = "";
+            JArray lccALResponseRecords = null;
             StringBuilder lccALLines = new StringBuilder();
             try
             {
                 ReadAllSettings();
                 lccTCTools.lccFLogInfo("34", "1", 1, "[createDataInFile] STARTED yearQuarter [" + yearQuarter + "]");
-
+                
                 colAP = lccTCTools.lccFGetConfigurationInt("ColAP");
                 colASM = lccTCTools.lccFGetConfigurationInt("ColAssignment");
                 colBeginYear = lccTCTools.lccFGetConfigurationInt("ColBeginYear");
@@ -289,24 +293,65 @@ namespace _25Live.Models
 
                 //Call the stored procedure to get data
                 //loop through the records
-                if (lccTCTools.lccSCSettings.lccCheckLogLevel("17") == true)
+                if (lccTCTools.lccSCSettings.lccCheckLogLevel("17") == true
+                    || lccTCTools.lccSCSettings.lccCheckLogLevel("35") == true)
                 {
                     lccTCTools.lccFLogInfo("35", "17", 1, "[createDataInFile] Prevent USP from running (getData), test without SQL process");
+                    if (lccTCTools.lccSCSettings.lccCheckLogLevel("17") == true)
+                    {
+                        lccTCTools.lccFLogInfo("35", "17", 1, "[createDataInFile] Prevent DataIn USP from running (getData), test without SQL process");
+                    }
+                    if (lccTCTools.lccSCSettings.lccCheckLogLevel("35") == true)
+                    {
+                        lccTCTools.lccFLogInfo("35", "35", 1, "[createDataInFile] Prevent USP from running (getData), test without SQL process");
+                    }
                 }
                 else
                 {
                     lccTCTools.lccFLogInfo("36", "16", 1, "[createDataInFile] Launching getData(1," + yearQuarter + ")");
-                    String classRows = getData(1, yearQuarter);
-
-
-                    if (!string.IsNullOrEmpty(classRows))
+                    try
                     {
-                        lccTCTools.lccFLogInfo("37", "6", 1, "[createDataInFile] classRows Is Not NULL or Empty");
-                        var objects = JArray.Parse(classRows); // parse as array 
-                                    var codeRanFlag = 0;
-                                    lccTCTools.lccFLogInfo("38", "7", 1, "[createDataInFile] classRows Count: " + objects.Count.ToString());
+                        classRows = getData(1, yearQuarter);
+                    }
+                    catch (Exception lccGetDataException)
+                    {
+                        lccTCTools.lccFLogInfo("36-2", "0", 1, "[createDataInFile] GetData ERROR: " + lccGetDataException.Message);
+                        lccBAbortFunction = true;
+                    }
+                    if (classRows == null)
+                    {
+                        lccTCTools.lccFLogInfo("36-2", "0", 1, "[createDataInFile] USP returned nothing.  USP creation, or permissions possible cause?");
+                        lccBAbortFunction = true;
+                    }
+                    if (lccBAbortFunction == false)
+                    {
 
-                                    foreach (JObject root in objects)
+
+                        if (!string.IsNullOrEmpty(classRows))
+                        {
+                            lccTCTools.lccFLogInfo("37", "6", 1, "[createDataInFile] classRows Is Not NULL or Empty");
+                            try
+                            {
+                                JArray.Parse(classRows);
+                            }
+                            catch (Exception lccJArrayParseException)
+                            {
+                                lccBAbortFunction = true;
+                                lccTCTools.lccFLogInfo("36-2", "0", 1, "[lccFCreateHeadCountFile] JSON Array Parse Exception: " + lccJArrayParseException.Message);
+                            }
+                            if (lccBAbortFunction == false)
+                            {
+                                lccALResponseRecords = JArray.Parse(classRows); // parse as array 
+                                var codeRanFlag = 0;
+                                lccTCTools.lccFLogInfo("38", "7", 1, "[createDataInFile] classRows Count: " + lccALResponseRecords.Count.ToString());
+                                if (lccFCheckJSONResponse(1, lccALResponseRecords) == false)
+                                {
+                                    lccTCTools.lccFLogInfo("36-2", "37", 1, "[createDataInFile] USP response: " + classRows);
+                                }
+                                else
+                                {
+
+                                    foreach (JObject root in lccALResponseRecords)
                                     {
                                         var apDesignator = root.GetValue("APDesignator").ToString().Trim();
                                         var assignment = root.GetValue("AssignmentField").ToString().Trim();
@@ -359,80 +404,80 @@ namespace _25Live.Models
                                             departmentID = departmentID.PadRight(departmentID.Length + spacesToAdd, ' ');
                                         }
 
-                                                        line = departmentID;
-                                                        line = concatNewField(line, colCatalog, lenCatalog, catalog);
-                                                        line = lccTCTools.lccFTranslateId(line);
-                                                        line = concatNewField(line, colSection, lenSection, section);
-                                                        line = concatNewField(line, colDays, lenDays, days);
-                                                        line = concatNewField(line, colStartHours, startHours.Length, startHours);
-                                                        line = concatNewField(line, colStartMinutes, startMinutes.Length, startMinutes);
-                                                        line = concatNewField(line, colFinishHours, finishHours.Length, finishHours);
-                                                        line = concatNewField(line, colFinishMinutes, finishMinutes.Length, finishMinutes);
-                                                        line = concatNewField(line, colAP, apDesignator.Length, apDesignator);
-                                                        line = concatNewField(line, colEnrollment, lenEnrollment, enrollment);
-                                                        line = concatNewField(line, colRoomName, lenRoomName, roomName);
-                                                        line = concatNewField(line, colBeginYear, startWeek.Length, startWeek);
-                                                        line = concatNewField(line, colEndYear, finishWeek.Length, finishWeek);
-                                                        line = concatNewField(line, colMeeting, lenMeeting, meetingNumber);
-                                                        line = concatNewField(line, colASM, lenASM, assignment);
-                                                        var Event = ""; // This field is optional and we will just fill this with spaces.
-                                                        line = concatNewField(line, colEvent, lenEvent, Event);
-                                                        line = concatNewField(line, colInstructor, lenInstructor, instructorEmail);
-                                                        line = concatNewField(line, colCourse, lenCourse, courseName);
-                                                        line = concatNewField(line, colTerm, lengthTerm, term);
-                                                        line = concatNewField(line, colCRN, lenCRN, crn);
-                                                        line += System.Environment.NewLine;
-                                                        lccALLines.Append(line);
+                                        line = departmentID;
+                                        line = concatNewField(line, colCatalog, lenCatalog, catalog);
+                                        line = lccTCTools.lccFTranslateId(line);
+                                        line = concatNewField(line, colSection, lenSection, section);
+                                        line = concatNewField(line, colDays, lenDays, days);
+                                        line = concatNewField(line, colStartHours, startHours.Length, startHours);
+                                        line = concatNewField(line, colStartMinutes, startMinutes.Length, startMinutes);
+                                        line = concatNewField(line, colFinishHours, finishHours.Length, finishHours);
+                                        line = concatNewField(line, colFinishMinutes, finishMinutes.Length, finishMinutes);
+                                        line = concatNewField(line, colAP, apDesignator.Length, apDesignator);
+                                        line = concatNewField(line, colEnrollment, lenEnrollment, enrollment);
+                                        line = concatNewField(line, colRoomName, lenRoomName, roomName);
+                                        line = concatNewField(line, colBeginYear, startWeek.Length, startWeek);
+                                        line = concatNewField(line, colEndYear, finishWeek.Length, finishWeek);
+                                        line = concatNewField(line, colMeeting, lenMeeting, meetingNumber);
+                                        line = concatNewField(line, colASM, lenASM, assignment);
+                                        var Event = ""; // This field is optional and we will just fill this with spaces.
+                                        line = concatNewField(line, colEvent, lenEvent, Event);
+                                        line = concatNewField(line, colInstructor, lenInstructor, instructorEmail);
+                                        line = concatNewField(line, colCourse, lenCourse, courseName);
+                                        line = concatNewField(line, colTerm, lengthTerm, term);
+                                        line = concatNewField(line, colCRN, lenCRN, crn);
+                                        line += System.Environment.NewLine;
+                                        lccALLines.Append(line);
 
 
-                                                        //Write to a file
-                                                        term = term.ToString().Trim();
+                                        //Write to a file
+                                        term = term.ToString().Trim();
 
-                                                        if (codeRanFlag == 0)
-                                                        {
-                                                            codeRanFlag = 1;
-                                                            filename = "datain" + term + ".dat";
-                                                            path = lccTCTools.lccFGetConfiguration("FilePath") + filename;
-                                                            if (lccTCTools.lccFGetConfiguration("ArchivePath").Length == 0)
-                                                            {
-                                                                lccTCTools.lccFLogInfo("59", "27", 1, "[createDataInFile][archiving] ArchivePath not provided, archiving skipped.");
-                                                            }
-                                                            else
-                                                            {
-                                                                try
-                                                                {
-                                                                    lccTCTools.lccFLogInfo("60", "27", 1, "[createDataInFile][archiving] ArchivePath provided [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "], archiving...");
-                                                                    // Check if the file exists.
-                                                                    //If it exists that archive that file.
-                                                                    archivePath = lccTCTools.lccFGetConfiguration("ArchivePath");
-                                                                    if (System.IO.File.Exists(path) == false)
-                                                                    {
-                                                                        lccTCTools.lccFLogInfo("61", "27", 1, "[createDataInFile][archiving] ArchivePath [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "] does not exist.");
-                                                                    }
-                                                                    else
-                                                                    {
-                                                                        lccTCTools.lccFLogInfo("62", "27", 1, "[createDataInFile][archiving] ArchivePath [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "] exists.");
-                                                                        String timeStamp = GetTimestamp(DateTime.Now);
-                                                                        newFileName = term + "_" + timeStamp + ".dat";
-                                                                        newPath = archivePath + newFileName;
-                                                                        // Move the existing file to archive folder
-                                                                        lccTCTools.lccFLogInfo("63", "8", 1, "[createDataInFile] Archiving File [" + path + "] to [" + newPath + "]");
-                                                                        System.IO.File.Move(path, newPath);
-                                                                        message += "File " + newFileName + " has been moved to " + archivePath + ".";
+                                        if (codeRanFlag == 0)
+                                        {
+                                            codeRanFlag = 1;
+                                            filename = "datain" + term + ".dat";
+                                            path = lccTCTools.lccFGetConfiguration("FilePath") + filename;
+                                            if (lccTCTools.lccFGetConfiguration("ArchivePath").Length == 0)
+                                            {
+                                                lccTCTools.lccFLogInfo("59", "27", 1, "[createDataInFile][archiving] ArchivePath not provided, archiving skipped.");
+                                            }
+                                            else
+                                            {
+                                                try
+                                                {
+                                                    lccTCTools.lccFLogInfo("60", "27", 1, "[createDataInFile][archiving] ArchivePath provided [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "], archiving...");
+                                                    // Check if the file exists.
+                                                    //If it exists that archive that file.
+                                                    archivePath = lccTCTools.lccFGetConfiguration("ArchivePath");
+                                                    if (System.IO.File.Exists(path) == false)
+                                                    {
+                                                        lccTCTools.lccFLogInfo("61", "27", 1, "[createDataInFile][archiving] ArchivePath [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "] does not exist.");
+                                                    }
+                                                    else
+                                                    {
+                                                        lccTCTools.lccFLogInfo("62", "27", 1, "[createDataInFile][archiving] ArchivePath [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "] exists.");
+                                                        String timeStamp = GetTimestamp(DateTime.Now);
+                                                        newFileName = term + "_" + timeStamp + ".dat";
+                                                        newPath = archivePath + newFileName;
+                                                        // Move the existing file to archive folder
+                                                        lccTCTools.lccFLogInfo("63", "8", 1, "[createDataInFile] Archiving File [" + path + "] to [" + newPath + "]");
+                                                        System.IO.File.Move(path, newPath);
+                                                        message += "File " + newFileName + " has been moved to " + archivePath + ".";
 
-                                                                    }
-                                                                }
-                                                                catch (Exception lccArchivingExcpetion)
-                                                                {
-                                                                    lccTCTools.lccFLogInfo("64", "0", 1, "[createDataInFile][archiving] ERROR-current folder: " + Environment.CurrentDirectory);
-                                                                    lccTCTools.lccFLogInfo("65", "0", 1, "[createDataInFile][archiving] ERROR-filename: " + filename);
-                                                                    lccTCTools.lccFLogInfo("66", "0", 1, "[createDataInFile][archiving] ERROR-path: " + path);
-                                                                    lccTCTools.lccFLogInfo("67", "0", 1, "[createDataInFile][archiving] ERROR-newFileName: " + newFileName);
-                                                                    lccTCTools.lccFLogInfo("68", "0", 1, "[createDataInFile][archiving] ERROR-newPath: " + newPath);
-                                                                    lccTCTools.lccFLogInfo("69", "0", 1, "[createDataInFile][archiving] ERROR: " + lccArchivingExcpetion.Message);
-                                                                }
-                                                            }
-                                                        }
+                                                    }
+                                                }
+                                                catch (Exception lccArchivingExcpetion)
+                                                {
+                                                    lccTCTools.lccFLogInfo("64", "0", 1, "[createDataInFile][archiving] ERROR-current folder: " + Environment.CurrentDirectory);
+                                                    lccTCTools.lccFLogInfo("65", "0", 1, "[createDataInFile][archiving] ERROR-filename: " + filename);
+                                                    lccTCTools.lccFLogInfo("66", "0", 1, "[createDataInFile][archiving] ERROR-path: " + path);
+                                                    lccTCTools.lccFLogInfo("67", "0", 1, "[createDataInFile][archiving] ERROR-newFileName: " + newFileName);
+                                                    lccTCTools.lccFLogInfo("68", "0", 1, "[createDataInFile][archiving] ERROR-newPath: " + newPath);
+                                                    lccTCTools.lccFLogInfo("69", "0", 1, "[createDataInFile][archiving] ERROR: " + lccArchivingExcpetion.Message);
+                                                }
+                                            }
+                                        }
                                     }
                                     if (lccALLines.Length == 0)
                                     {
@@ -444,20 +489,26 @@ namespace _25Live.Models
                                         {
                                             lccTCTools.lccFLogInfo("71", "9", 1, "[createDataInFile] Writing to file [" + path + "]");
                                             System.IO.StreamWriter file = new System.IO.StreamWriter(path);
-                                            message += " A new file named " + filename + " is created at location " + lccTCTools.lccFGetConfiguration("FilePath") + ".";
+                                            message += "<br>A new file named " + filename + " is created at location " + lccTCTools.lccFGetConfiguration("FilePath") + ".";
                                             file.Write(lccALLines.ToString());
                                             file.Close();
                                         }
                                     }
+                                }
+                            }
+                        }
 
                     }
                 }
-                lccTCTools.lccFLogInfo("72", "10", 1, "[createDataInFile] FINISHED");
-                message += "<hr>Process Finished.";
-                if (lccTCTools.lccFGetConfiguration("25LiveUSPHeadCount").Length > 0)
+                if (lccBAbortFunction == false)
                 {
-                    lccFCreateHeadCountFile(yearQuarter);
+                    lccTCTools.lccFLogInfo("72", "10", 1, "[createDataInFile] FINISHED");
+                    if (lccTCTools.lccFGetConfiguration("25LiveUSPHeadCount").Length > 0)
+                    {
+                        lccFCreateHeadCountFile(yearQuarter);
+                    }
                 }
+                message += "<hr>Process Finished.";
                 dict["message"] = message + lccTCTools.lccFReturnLogOutput();
                 dict["status"] = "success";
             }
@@ -472,8 +523,155 @@ namespace _25Live.Models
             lccTCTools.lccFLogInfo("73", "", 4, "");
             return dict;
         }
+        public bool lccFCheckJSONResponse(int lccParamIFlag, JArray lccParamJAResponse)
+        {
+            // lccParamIFlag
+            // 1 - datain
+            // 2 - head count
+            bool lccBReturn = false;
+            int lccILength = 0;
+            int lccIOnKey = 0;
+            List<string> lccALKeys = new List<string>();
+            try
+            {
+                lccTCTools.lccFLogInfo("71", "32", 0, "[lccFCheckJSONResponse] STARTED - Flag [" + lccParamIFlag.ToString()+"]");
+                foreach (JObject lccORecordLoop in lccParamJAResponse)
+                {
+                    switch (lccParamIFlag)
+                    {
+                        case 1:
+                            lccALKeys.Add("APDesignator");
+                            lccALKeys.Add("AssignmentField");
+                            lccALKeys.Add("Catalog");
+                            lccALKeys.Add("ClassID");
+                            lccALKeys.Add("CourseName");
+                            lccALKeys.Add("CRN");
+                            lccALKeys.Add("Days");
+                            lccALKeys.Add("DepartmentID");
+                            lccALKeys.Add("Enrollment");
+                            lccALKeys.Add("FinishHours");
+                            lccALKeys.Add("FinishMinutes");
+                            lccALKeys.Add("FinishWeek");
+                            lccALKeys.Add("MeetingNumber");
+                            lccALKeys.Add("RoomName");
+                            lccALKeys.Add("Section");
+                            lccALKeys.Add("StartHours");
+                            lccALKeys.Add("StartMinutes");
+                            lccALKeys.Add("StartWeek");
+                            lccALKeys.Add("term");
+                            lccALKeys.Add("WorkEmail");
+
+                            lccILength = lccORecordLoop.GetValue("APDesignator").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: APDesignator");
+                            lccIOnKey++;
+
+                            lccILength = lccORecordLoop.GetValue("AssignmentField").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: AssignmentField");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("Catalog").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: Catalog");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("ClassID").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: ClassID");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("CourseName").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: CourseName");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("CRN").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: CRN");
+                            lccIOnKey++;
+
+                            lccILength = lccORecordLoop.GetValue("Days").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: Days");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("DepartmentID").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: DepartmentID");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("Enrollment").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: Enrollment");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("FinishHours").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: FinishHours");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("FinishMinutes").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: FinishMinutes");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("FinishWeek").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: FinishWeek");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("MeetingNumber").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: MeetingNumber");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("RoomName").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: RoomName");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("Section").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: Section");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("StartHours").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: StartHours");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("StartMinutes").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: StartMinutes");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("StartWeek").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: StartWeek");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("term").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: term");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("WorkEmail").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: WorkEmail");
+                            lccIOnKey++;
+                            lccBReturn = true;
+                            break;
+                        case 2:
+                            lccALKeys.Add("CRN");
+                            lccALKeys.Add("StudentsEnrolled");
+
+                            lccILength = lccORecordLoop.GetValue("CRN").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: CRN");
+                            lccIOnKey++;
+                            
+                            lccILength = lccORecordLoop.GetValue("StudentsEnrolled").ToString().Length;
+                            lccTCTools.lccFLogInfo("71", "33", 0, "[lccFCheckJSONResponse] Key Found: StudentsEnrolled");
+                            lccIOnKey++;
+                            
+                            lccBReturn = true;
+                            break;
+                    }
+                }
+            }
+            catch (Exception lccException)
+            {
+                if (lccIOnKey < lccALKeys.Count)
+                {
+                    lccTCTools.lccFLogInfo("71", "0", 0, "[lccFCheckJSONResponse] First Key Missing: " + lccALKeys[lccIOnKey]);
+                }
+                lccTCTools.lccFLogInfo("71", "0", 0, "[lccFCheckJSONResponse] ERROR: " + lccException.Message);
+            }
+            return lccBReturn;
+        }
         public IDictionary<string, string> lccFCreateHeadCountFile(String yearQuarter)
         {
+            bool lccBAbortFunction = false;
             int lccICodeRanFlag = 0;
             string lccSMessage = "";
             string lccSFilename = "";
@@ -485,6 +683,7 @@ namespace _25Live.Models
             string lccSRecordCRN = "";
             string lccSRecordStudentsEnrolled = "";
             string lccDTTimeStamp = GetTimestamp(DateTime.Now);
+            string classRows = "";
             IDictionary<string, string> lccALIDResponse = new Dictionary<string, string>(); // Will be used for return values
             StringBuilder lccALLines = new StringBuilder();
             JArray lccALResponseRecords = null; // parse as array 
@@ -495,103 +694,147 @@ namespace _25Live.Models
 
                 //Call the stored procedure to get data
                 //loop through the records
-                if (lccTCTools.lccSCSettings.lccCheckLogLevel("29") == true)
+                if (lccTCTools.lccSCSettings.lccCheckLogLevel("17") == true
+                    || lccTCTools.lccSCSettings.lccCheckLogLevel("36") == true)
                 {
-                    lccTCTools.lccFLogInfo("75", "29", 1, "[lccFCreateHeadCountFile] Prevent USP from running (getData), test without SQL process");
+                    lccTCTools.lccFLogInfo("75", "17", 1, "[lccFCreateHeadCountFile] Prevent USP from running (getData), test without SQL process");
+                    if (lccTCTools.lccSCSettings.lccCheckLogLevel("17") == true)
+                    {
+                        lccTCTools.lccFLogInfo("75", "17", 1, "[lccFCreateHeadCountFile] Prevent USP from running (getData), test without SQL process");
+                    }
+                    if (lccTCTools.lccSCSettings.lccCheckLogLevel("17") == true)
+                    {
+                        lccTCTools.lccFLogInfo("75", "36", 1, "[lccFCreateHeadCountFile] Prevent Head Count USP from running (getData), test without SQL process");
+                    }
                 }
                 else
                 {
                     lccTCTools.lccFLogInfo("76", "28", 1, "[lccFCreateHeadCountFile] Launching getData(2," + yearQuarter + ")");
-                    String classRows = getData(2, yearQuarter);
-
-
-
-                    if (!string.IsNullOrEmpty(classRows))
+                    try
                     {
-                        lccTCTools.lccFLogInfo("77", "6", 1, "[lccFCreateHeadCountFile] classRows Is Not NULL or Empty");
-                        lccALResponseRecords = JArray.Parse(classRows); // parse as array 
-                        lccICodeRanFlag = 0;
-                        lccTCTools.lccFLogInfo("78", "7", 1, "[lccFCreateHeadCountFile] classRows Count: " + lccALResponseRecords.Count.ToString());
+                        classRows = getData(2, yearQuarter);
+                    }
+                    catch (Exception lccGetDataException)
+                    {
+                        lccTCTools.lccFLogInfo("76-2", "0", 1, "[lccFCreateHeadCountFile] GetData ERROR: " + lccGetDataException.Message);
+                        lccBAbortFunction = true;
+                    }
+                    if (classRows == null)
+                    {
+                        lccTCTools.lccFLogInfo("36-2", "0", 1, "[lccFCreateHeadCountFile] USP returned nothing.  USP creation, or permissions possible cause?");
+                        lccBAbortFunction = true;
+                    }
 
-                        foreach (JObject root in lccALResponseRecords)
+                    if (lccBAbortFunction == false)
+                    {
+                        if (!string.IsNullOrEmpty(classRows))
                         {
-                            lccSRecordCRN = root.GetValue("CRN").ToString().Trim();
-                            lccSRecordStudentsEnrolled = root.GetValue("StudentsEnrolled").ToString().Trim();
-
-                            lccTCTools.lccFLogInfo("79", "30", 1, "[lccFCreateHeadCountFile] JSON Key [CRN] Value [" + root.GetValue("CRN").ToString().Length.ToString() + "][" + root.GetValue("CRN").ToString() + "]");
-                            lccTCTools.lccFLogInfo("80", "30", 1, "[lccFCreateHeadCountFile] JSON Key [StudentsEnrolled] Value [" + root.GetValue("StudentsEnrolled").ToString().Length.ToString() + "][" + root.GetValue("StudentsEnrolled").ToString() + "]");
-
-                            lccSLine = lccSRecordCRN + "," + lccSRecordStudentsEnrolled+"\r\n";
-                            lccALLines.Append(lccSLine);
-
-
-                            //Write to a file
-
-                            if (lccICodeRanFlag == 0)
+                            lccTCTools.lccFLogInfo("77", "6", 1, "[lccFCreateHeadCountFile] classRows Is Not NULL or Empty");
+                            try
                             {
-                                lccICodeRanFlag = 1;
-                                lccSFilename = "headcount" + yearQuarter + ".data";
-                                lccSPath = lccTCTools.lccFGetConfiguration("FilePath") + lccSFilename;
-                                if (lccTCTools.lccFGetConfiguration("ArchivePath").Length == 0)
+                                JArray.Parse(classRows);
+                            }
+                            catch (Exception lccJArrayParseException)
+                            {
+                                lccBAbortFunction = true;
+                                lccTCTools.lccFLogInfo("36-2", "0", 1, "[lccFCreateHeadCountFile] JSON Array Parse Exception: " + lccJArrayParseException.Message);
+                            }
+                            if (lccBAbortFunction == false)
+                            {
+                                lccALResponseRecords = JArray.Parse(classRows); // parse as array 
+                                lccICodeRanFlag = 0;
+                                lccTCTools.lccFLogInfo("78", "7", 1, "[lccFCreateHeadCountFile] classRows Count: " + lccALResponseRecords.Count.ToString());
+                                if (lccFCheckJSONResponse(2, lccALResponseRecords) == false)
                                 {
-                                    lccTCTools.lccFLogInfo("81", "31", 1, "[lccFCreateHeadCountFile][archiving] ArchivePath not provided, archiving skipped.");
+                                    lccTCTools.lccFLogInfo("36-2", "37", 1, "[lccFCreateHeadCountFile] USP response: " + classRows);
                                 }
                                 else
                                 {
-                                    try
-                                    {
-                                        lccTCTools.lccFLogInfo("82", "31", 1, "[lccFCreateHeadCountFile][archiving] ArchivePath provided [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "], archiving...");
-                                        // Check if the file exists.
-                                        //If it exists that archive that file.
-                                        lccSArchivePath = lccTCTools.lccFGetConfiguration("ArchivePath");
-                                        if (System.IO.File.Exists(lccSPath) == false)
-                                        {
-                                            lccTCTools.lccFLogInfo("83", "31", 1, "[lccFCreateHeadCountFile][archiving] ArchivePath [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "] does not exist.");
-                                        }
-                                        else
-                                        {
-                                            lccTCTools.lccFLogInfo("84", "31", 1, "[lccFCreateHeadCountFile][archiving] ArchivePath [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "] exists.");
-                                            lccDTTimeStamp = GetTimestamp(DateTime.Now);
-                                            lccSNewFileName = "headcount_"+yearQuarter + "_" + lccDTTimeStamp + ".data";
-                                            lccSNewPath = lccSArchivePath + lccSNewFileName;
-                                            // Move the existing file to archive folder
-                                            System.IO.File.Move(lccSPath, lccSNewPath);
-                                            lccTCTools.lccFLogInfo("85", "8", 1, "[lccFCreateHeadCountFile] Archiving File [" + lccSPath + "] to [" + lccSNewPath + "]");
-                                            lccSMessage += "File " + lccSNewFileName + " has been moved to " + lccSArchivePath + ".";
 
+                                    foreach (JObject root in lccALResponseRecords)
+                                    {
+                                        lccSRecordCRN = root.GetValue("CRN").ToString().Trim();
+                                        lccSRecordStudentsEnrolled = root.GetValue("StudentsEnrolled").ToString().Trim();
+
+                                        lccTCTools.lccFLogInfo("79", "30", 1, "[lccFCreateHeadCountFile] JSON Key [CRN] Value [" + root.GetValue("CRN").ToString().Length.ToString() + "][" + root.GetValue("CRN").ToString() + "]");
+                                        lccTCTools.lccFLogInfo("80", "30", 1, "[lccFCreateHeadCountFile] JSON Key [StudentsEnrolled] Value [" + root.GetValue("StudentsEnrolled").ToString().Length.ToString() + "][" + root.GetValue("StudentsEnrolled").ToString() + "]");
+
+                                        lccSLine = lccSRecordCRN + "," + lccSRecordStudentsEnrolled + "\r\n";
+                                        lccALLines.Append(lccSLine);
+
+
+                                        //Write to a file
+
+                                        if (lccICodeRanFlag == 0)
+                                        {
+                                            lccICodeRanFlag = 1;
+                                            lccSFilename = "headcount" + yearQuarter + ".data";
+                                            lccSPath = lccTCTools.lccFGetConfiguration("FilePath") + lccSFilename;
+                                            if (lccTCTools.lccFGetConfiguration("ArchivePath").Length == 0)
+                                            {
+                                                lccTCTools.lccFLogInfo("81", "31", 1, "[lccFCreateHeadCountFile][archiving] ArchivePath not provided, archiving skipped.");
+                                            }
+                                            else
+                                            {
+                                                try
+                                                {
+                                                    lccTCTools.lccFLogInfo("82", "31", 1, "[lccFCreateHeadCountFile][archiving] ArchivePath provided [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "], archiving...");
+                                                    // Check if the file exists.
+                                                    //If it exists that archive that file.
+                                                    lccSArchivePath = lccTCTools.lccFGetConfiguration("ArchivePath");
+                                                    if (System.IO.File.Exists(lccSPath) == false)
+                                                    {
+                                                        lccTCTools.lccFLogInfo("83", "31", 1, "[lccFCreateHeadCountFile][archiving] ArchivePath [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "] does not exist.");
+                                                    }
+                                                    else
+                                                    {
+                                                        lccTCTools.lccFLogInfo("84", "31", 1, "[lccFCreateHeadCountFile][archiving] ArchivePath [" + lccTCTools.lccFGetConfiguration("ArchivePath") + "] exists.");
+                                                        lccDTTimeStamp = GetTimestamp(DateTime.Now);
+                                                        lccSNewFileName = "headcount_" + yearQuarter + "_" + lccDTTimeStamp + ".data";
+                                                        lccSNewPath = lccSArchivePath + lccSNewFileName;
+                                                        // Move the existing file to archive folder
+                                                        System.IO.File.Move(lccSPath, lccSNewPath);
+                                                        lccTCTools.lccFLogInfo("85", "8", 1, "[lccFCreateHeadCountFile] Archiving File [" + lccSPath + "] to [" + lccSNewPath + "]");
+                                                        lccSMessage += "File " + lccSNewFileName + " has been moved to " + lccSArchivePath + ".";
+
+                                                    }
+                                                }
+                                                catch (Exception lccArchivingExcpetion)
+                                                {
+                                                    lccTCTools.lccFLogInfo("86", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-current folder: " + Environment.CurrentDirectory);
+                                                    lccTCTools.lccFLogInfo("87", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-filename: " + lccSFilename);
+                                                    lccTCTools.lccFLogInfo("88", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-path: " + lccSPath);
+                                                    lccTCTools.lccFLogInfo("89", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-newFileName: " + lccSNewFileName);
+                                                    lccTCTools.lccFLogInfo("90", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-newPath: " + lccSNewPath);
+                                                    lccTCTools.lccFLogInfo("91", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR: " + lccArchivingExcpetion.Message);
+                                                }
+                                            }
                                         }
                                     }
-                                    catch (Exception lccArchivingExcpetion)
+                                    if (lccALLines.Length == 0)
                                     {
-                                        lccTCTools.lccFLogInfo("86", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-current folder: " + Environment.CurrentDirectory);
-                                        lccTCTools.lccFLogInfo("87", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-filename: " + lccSFilename);
-                                        lccTCTools.lccFLogInfo("88", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-path: " + lccSPath);
-                                        lccTCTools.lccFLogInfo("89", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-newFileName: " + lccSNewFileName);
-                                        lccTCTools.lccFLogInfo("90", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR-newPath: " + lccSNewPath);
-                                        lccTCTools.lccFLogInfo("91", "0", 1, "[lccFCreateHeadCountFile][archiving] ERROR: " + lccArchivingExcpetion.Message);
+                                        lccTCTools.lccFLogInfo("92", "9", 1, "[lccFCreateHeadCountFile] No records loaded from SQL query to write to file - Path [" + lccSPath + "]");
+                                    }
+                                    if (lccALLines.Length > 0)
+                                    {
+                                        if (lccSPath.Length > 0)
+                                        {
+                                            lccTCTools.lccFLogInfo("93", "9", 1, "[lccFCreateHeadCountFile] Writing to file [" + lccSPath + "]");
+                                            lccSWTarget = new System.IO.StreamWriter(lccSPath);
+                                            lccSMessage += " A new file named " + lccSFilename + " is created at location " + lccTCTools.lccFGetConfiguration("FilePath") + ".";
+                                            lccSWTarget.Write(lccALLines.ToString());
+                                            lccSWTarget.Close();
+                                        }
                                     }
                                 }
                             }
                         }
-                        if (lccALLines.Length == 0)
-                        {
-                            lccTCTools.lccFLogInfo("92", "9", 1, "[lccFCreateHeadCountFile] No records loaded from SQL query to write to file - Path [" + lccSPath + "]");
-                        }
-                        if (lccALLines.Length > 0)
-                        {
-                            if (lccSPath.Length > 0)
-                            {
-                                lccTCTools.lccFLogInfo("93", "9", 1, "[lccFCreateHeadCountFile] Writing to file [" + lccSPath + "]");
-                                lccSWTarget = new System.IO.StreamWriter(lccSPath);
-                                lccSMessage += " A new file named " + lccSFilename + " is created at location " + lccTCTools.lccFGetConfiguration("FilePath") + ".";
-                                lccSWTarget.Write(lccALLines.ToString());
-                                lccSWTarget.Close();
-                            }
-                        }
-
                     }
                 }
-                lccTCTools.lccFLogInfo("94", "10", 1, "[lccFCreateHeadCountFile] FINISHED");
+                if (lccBAbortFunction == false)
+                {
+                    lccTCTools.lccFLogInfo("94", "10", 1, "[lccFCreateHeadCountFile] FINISHED");
+                }
                 lccSMessage += "<hr>Process Finished.";
                 lccALIDResponse["message"] = lccSMessage + lccTCTools.lccFReturnLogOutput();
                 lccALIDResponse["status"] = "success";
