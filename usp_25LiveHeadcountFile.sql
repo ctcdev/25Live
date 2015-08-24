@@ -13,6 +13,7 @@ GO
 
 /****************************************************************************************************************************************************
 CREATED:
+08/24/2015   David Mielcarek    Added YearQuarter parameter value to CRN response column.
 08/13/2015   David Schieber     This stored procedure is called in order to create the headcount<term>.data file which will feed as an input to 
                                 25Live. The criteria is substantially copied from usp_25LiveDataInFile.
 MODIFIED:
@@ -40,7 +41,7 @@ AS
    also do not require room assignments.
 *****************************************************************************************************************************************************/
 
-		SELECT CourseID+Section+ItemNumber as CRN
+		SELECT @YearQuarter+CourseID+Section+ItemNumber as CRN
 			, StudentsEnrolled
 		FROM vw_Class C left outer join vw_Day D ON C.DayID = D.DayID
 		WHERE YearQuarterID = @YearQuarter and ((ISNULL(SectionStatusID1,'') NOT IN ('Z','X'))) and D.Title <> 'ARRANGED'  and ISNULL(RoomID,'') NOT LIKE ('HOS%')
