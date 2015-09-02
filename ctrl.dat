@@ -1,5 +1,5 @@
 46                            FIRST COLUMN OF ROOM NAME                       01
-08                            LENGTH OF ROOM NAME FIELD                       02
+09                            LENGTH OF ROOM NAME FIELD                       02
 10                            LENGTH OF DAYS FIELD                            03
 U                             ABBREVIATION FOR SUNDAY                         04
 M                             ABBREVIATION FOR MONDAY                         05
