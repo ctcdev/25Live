@@ -168,18 +168,26 @@ namespace _25Live.Models
         {
             var spacesToAdd = 0; // Initialising it for reuse.
             var diffSpacesBetFields = 0; //subtract colNextField and length of the line and add the resultant number of spaces and concat with the next field value
+            string lccSUseValue = valueNewField;
             try
             {
                 //subtract colNextField and length of the line and add the resultant number of spaces and concat with the next field value
                 diffSpacesBetFields = colNewField - line.Length - 1;
                 if (diffSpacesBetFields > 0)
+                {
                     line = line.PadRight(line.Length + diffSpacesBetFields, ' ');
+                }
                 spacesToAdd = lenNewField - valueNewField.Length;
                 if (spacesToAdd > 0)
                 {
-                    valueNewField = valueNewField.PadRight(valueNewField.Length + spacesToAdd, ' ');
+                    lccSUseValue = valueNewField.PadRight(valueNewField.Length + spacesToAdd, ' ');
                 }
-                line += valueNewField;
+                if (lccSUseValue.Length > lenNewField)
+                {
+                    lccTCTools.lccFLogInfo("33", "38", 1, "[concatNewField] Column value [" + lccSUseValue + "] length [" + lccSUseValue.Length.ToString() + "] too long, truncating to length [" + lenNewField.ToString()+"]");
+                    lccSUseValue = lccSUseValue.Substring(0, lenNewField);
+                }
+                line += lccSUseValue;
             }
             catch (Exception lccException)
             {
