@@ -23,6 +23,7 @@ MODIFIED:
 06/30/2015	 David Schieber		Updated procedure to accept variable DataInYearQuarter and apply that to the NextYearQuarter variable.
 								Purpose of this update is to allow the DataInYearQuarter variable to be set on the Windows Task Action tab that 
 								initiates the CreateDatain/CreateNewFile web application.
+09/02/2015   David Schieber     Added replace on Room Name to change Cancel to Cancelled
 ****************************************************************************************************************************************************/
 CREATE PROCEDURE [dbo].[usp_25LiveDataInFile] @DataInYearQuarter VARCHAR(4) WITH RECOMPILE
 AS 
@@ -56,7 +57,7 @@ AS
 ***************************************************************************************************************************************/
         
 ;WITH CTE AS
-(SELECT replace(RoomID,' ','') as RoomName
+(SELECT replace(replace(RoomID, 'CANCEL', 'CANCELLED'),' ','') as RoomName
 	, replace(replace(replace(replace(D.Title, 'Th','R'),'Sa','S'), 'Su','U'), 'DAILY','MTWRF') as Days
 	, ClassID
 	, ClusterItemNumber
