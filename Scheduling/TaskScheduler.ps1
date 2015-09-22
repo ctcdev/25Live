@@ -3,6 +3,8 @@
 # Under: Program
 # Set $global:lccSLogPath, the log file root file name, ex: "25LiveScheduler-log";
 # Set $global:lccSScreenOutput, to the screen output root file name, ex: "25LiveScheduler-screenoutput";
+# As an Administrator, run the following command (only need to run once) from PowerShell:
+# > Set-ExecutionPolicy UnRestricted;
 # URL
 # Create $lccS25LiveCreateNewFileURL, for each URL, ex: "http://yoursite.edu/25Live/CreateDatain/CreateNewFile/B561";
 # Email
@@ -64,7 +66,6 @@ Function lccFMain()
 lccFLogInfo "[lccFMain] STARTED";
 Write-Host "lccSEmailRecipient ["$lccSEmailRecipient"]";
 lccFLogInfo "[lccFMain] Set Execution Policy";
-Set-ExecutionPolicy UnRestricted;
 ForEach ($lccURLLoop in $lccS25LiveCreateNewFileURLs)
 	{
 	lccFLogInfo "Processing URL: $lccURLLoop";
