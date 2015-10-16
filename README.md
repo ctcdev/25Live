@@ -4,6 +4,10 @@ This tool is made available for the convenience of the Washington Community and
 Technical College System. Bellevue College does not support, warranty or assist
 in the use of the tool.
 
+[David Mielcarek, 20151016] Added PDF detailing UCP setttings (projectPlan-2015-002-25Live-UCPSettings.pdf).
+Added PDF detailing Crontab File syntax (projectPlan-2015-002-25Live-CrontabFile.pdf).
+Created external site to supply 25Live Resources from LCC (http://lcc.ctc.edu/info/25Live).
+
 [David Mielcarek, 20150817] Added PDF detailing installation/configuring (25LiveInterface-manual.pdf).
 Added Head Count add-on (see 25LiveUSPHeadCount Web.config Key/Value).
 
